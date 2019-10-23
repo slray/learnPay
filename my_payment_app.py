@@ -14,14 +14,14 @@ for account in json.loads(open(data_path).read()):
 
 transactions = random_payment_generator()
 max = 5000
-count = 0
-for trnx in transactions:
+
+every = lambda g, n: zip(g, cycle([True] + [False] * (n-1)))
+
+from itertools import islice, cycle
+for trnx, debug in every( islice(transactions, max), 10):
     Ledger.process_transaction(trnx)
-    if (count % 10) == 0:
+    if debug:
         print(trnx.as_json())
-    count  += 1
-    if max < count:
-        transactions.close()
 
 for account_id, account in Accounts.items():
     print(account.display_balance())
