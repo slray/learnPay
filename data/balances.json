@@ -1,0 +1,83 @@
+[
+    {
+        "id": 1,
+        "name": "Becky",
+        "country": "United States",
+        "balances": {
+            "USD": 1000,
+            "EUR": 5000
+        },
+        "transactions": []
+    },
+    {
+        "id": 2,
+        "name": "Nikhil",
+        "country": "Netherlands",
+        "balances": {
+            "GBP": 1000,
+            "EUR":  500
+        },
+        "transactions": []
+    },
+    {
+        "id": 3,
+        "name": "Borys",
+        "country": "North Korea",
+        "balances": {
+            "USD":  50,
+            "EUR":  50,
+            "JPY":  50,
+            "DKK":  50
+        },
+        "transactions": []
+    },
+    {
+        "id": 4,
+        "name": "Steve",
+        "country": "Spain",
+        "balances": {
+            "GBP":    100,
+            "EUR":     50,
+            "CHF": 500000
+        },
+        "transactions": []
+    },
+    {
+        "id": 5,
+        "name": "Steve",
+        "country": "North Korea",
+        "balances": {
+            "GBP":  1,
+            "EUR":  5
+        },
+        "transactions": []
+    },
+    {
+        "id": 6,
+        "name": "Varsha",
+        "country": "Australia",
+        "balances": {
+            "USD": 10,
+            "EUR":  5
+        },
+        "transactions": []
+    },
+    {
+        "id": 7,
+        "name": "Mike",
+        "country": "Iran",
+        "balances": {
+            "USD": 500
+        },
+        "transactions": []
+    },
+    {
+        "id": 8,
+        "name": "Vivek",
+        "country": "France",
+        "balances": {
+            "EUR": 500
+        },
+        "transactions": []
+    }
+]

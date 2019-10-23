@@ -1,0 +1,46 @@
+{
+    "Five Eyes": {
+        "countries": [
+            "United States",
+            "Australia",
+            "United Kingdom",
+            "New Zealand",
+            "Canada"
+        ],
+        "sanctions": [
+            {
+                "country": "North Korea",
+                "start": "1948-04-09"
+            },
+            {
+                "country": "Iran",
+                "start": "2012-17-03",
+                "end": "2016-01-16"
+            },
+            {
+                "country": "Iran",
+                "start": "2018-11-05"
+            }
+        ]
+    },
+    "European Union": {
+        "countries": [
+            "Germany",
+            "France",
+            "Spain",
+            "Netherlands",
+            "Italy"
+        ],
+        "sanctions": [
+            {
+                "country": "North Korea",
+                "start": "1948-04-09"
+            },
+            {
+                "country": "Iran",
+                "start": "2012-17-03",
+                "end": "2016-01-16"
+            }
+        ]
+    }
+}
