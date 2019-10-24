@@ -7,6 +7,7 @@ from string import ascii_lowercase
 from decimal import Decimal
 from json import load
 from transaction import Transaction, Currency, Balance, Account
+from pathlib import Path
 
 # sender,sender_id,sender_country,\
 # recipient_id,recipient_country,date,amount,currency
@@ -48,6 +49,10 @@ if __name__  == '__main__':
 
     for pmt in generate_random_transactions(accounts, refdate=date(2019, 1, 1)):
         try:
-            print(pmt.as_json) # XXX
+            path = Path('transactions') / pmt.ident.decode('ascii')
+            with open(path, 'w') as f:
+                f.write(pmt.as_json)
+            print(f'wrote to {path}')
+            from time import sleep; sleep(.5)
         except BrokenPipeError:
             break

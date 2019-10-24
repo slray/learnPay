@@ -9,6 +9,8 @@ from datetime import datetime, date
 from itertools import chain, repeat
 from dataclasses import dataclass
 from itertools import islice, tee
+from pathlib import Path
+from trio import run, open_nursery, sleep as trio_sleep
 
 from transaction import Transaction, Symbols, Account
 
@@ -62,11 +64,78 @@ class Period(namedtuple('Period', 'country from_date to_date')):
 
 nwise = lambda g, n: zip(*(islice(g, i, None) for i, g in enumerate(tee(g,n))))
 
-if __name__ == '__main__':
+class TaskSet(namedtuple('TaskSet', 'tasks done')):
+    @property
+    def todo(self):
+        return self.tasks - self.done
+
+FILES        = TaskSet({*''}, {*''})
+TRANSACTIONS = TaskSet({*''}, {*''})
+FLAGGED      = {*''}
+
+async def reader():
+    while True:
+        FILES.tasks.update(
+            {p for p in Path('transactions/').iterdir() if p.is_file()}
+        )
+        await trio_sleep(0)
+
+async def processor(accounts, today):
+    while True:
+        if FILES.todo:
+            path = FILES.todo.pop()
+            with open(path) as f: # XXX
+                data = load(f)
+            tx = Transaction.from_json(data, accounts=accounts, refdate=today)
+            accounts[tx.sender.ident].transactions.append(tx)
+            accounts[tx.recipient.ident].transactions.append(tx)
+            TRANSACTIONS.todo.add(tx)
+            FILES.done.add(tx)
+        await trio_sleep(0)
+
+async def validator(sanctions):
+    while True:
+        if TRANSACTIONS.todo:
+            tx = TRANSACTIONS.todo.pop()
+            try:
+                s = sanctions[tx.sender.country][tx.recipient.country][tx.date]
+                FLAGGED.add(tx)
+            except KeyError:
+                pass
+            TRANSACTIONS.done.add(tx)
+        await trio_sleep(0)
+
+async def reporter(accounts):
+    while True:
+        print('\033c')
+        for acct in sorted(accounts.values(), key=lambda acct: acct.name):
+            min_dates = {curr: min(p.date for p in ps)
+                         for curr, ps in acct.by_currency.items()}
+            max_dates = {curr: max(p.date for p in ps)
+                         for curr, ps in acct.by_currency.items()}
+            bals = [f'{amt:10.2f} {Symbols[curr]} ({curr.name})'
+                    f' ({min_dates[curr]:%Y-%m-%d} ~ {max_dates[curr]:%Y-%m-%d})'
+                    for curr, amt in sorted(acct.balances.items())]
+            pred = lambda _, c=chain([False], repeat(True)): next(c) # XXX
+            bals = indent('\n'.join(bals), ' ' * (2 + len(f'{acct.name:<10}')), pred)
+            print(f'{acct.name:<10}  {bals}')
+            break
+
+        print('Flagged Transactions'.center(50, '-'))
+        for tx in FLAGGED:
+            print(f'{tx.date:%Y-%m-%d} {tx.sender.name} → {tx.recipient.name}')
+            print(f'           region   = {tx.sender.country} → {tx.recipient.country}')
+            print(f'           date     = {tx.date}')
+            print(f'           amount   = {tx.amount}')
+            print(f'           currency = {tx.currency}')
+        await trio_sleep(1)
+
+async def main():
     today = datetime.now().date()
 
     with open('ofac.json') as f:
         data = load(f)
+
     sanctions = defaultdict(
         lambda: Sanctions(None, None, []),
         {
@@ -77,41 +146,15 @@ if __name__ == '__main__':
 
     with open('balances.json') as f: # XXX
         data = load(f)
+
     accounts = {(x:=Account.from_json(acct, refdate=today)).ident: x
                 for acct in data}
 
-    with open('transactions.big.json') as f: # XXX
-        data = load(f)
-    transactions = [Transaction.from_json(x, accounts=accounts, refdate=today) for x in data]
+    async with open_nursery() as n:
+        n.start_soon(reader)
+        n.start_soon(processor, accounts, today)
+        n.start_soon(validator, sanctions)
+        n.start_soon(reporter, accounts)
 
-    for tx in transactions:
-        accounts[tx.sender.ident].transactions.append(tx)
-        accounts[tx.recipient.ident].transactions.append(tx)
-
-    flagged = []
-    for tx in transactions:
-        try:
-            s = sanctions[tx.sender.country][tx.recipient.country][tx.date]
-            flagged.append(tx)
-        except KeyError:
-            pass
-    for acct in accounts.values():
-        for txs in nwise(sorted(acct.transactions, key=lambda tx: tx.date), 5):
-            first, *_, last = txs
-            if not all(tx.sender is acct for tx in txs):
-                continue
-            if (last.date - first.date).days < 10:
-                for tx in txs:
-                    print(tx.sender.name, tx.recipient.name, tx.amount)
-
-    # for acct in sorted(accounts.values(), key=lambda acct: acct.name):
-    #     min_dates = {curr: min(p.date for p in ps)
-    #                  for curr, ps in acct.by_currency.items()}
-    #     max_dates = {curr: max(p.date for p in ps)
-    #                  for curr, ps in acct.by_currency.items()}
-    #     bals = [f'{amt:10.2f} {Symbols[curr]} ({curr.name})'
-    #             f' ({min_dates[curr]:%Y-%m-%d} ~ {max_dates[curr]:%Y-%m-%d})'
-    #             for curr, amt in sorted(acct.balances.items())]
-    #     pred = lambda _, c=chain([False], repeat(True)): next(c) # XXX
-    #     bals = indent('\n'.join(bals), ' ' * (2 + len(f'{acct.name:<10}')), pred)
-    #     print(f'{acct.name:<10}  {bals}')
+if __name__ == '__main__':
+    run(main)

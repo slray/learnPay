@@ -3,8 +3,12 @@ from datetime import datetime, date
 from decimal import Decimal
 from collections import deque, defaultdict
 from dataclasses import dataclass, asdict
-from json import dumps
+from json import dumps as json_dumps
 from functools import total_ordering
+
+from hashlib import sha256
+from base64 import urlsafe_b64encode
+from pickle import dumps as pickle_dumps
 
 def default_json_encoder(value): # XXX
     if isinstance(value, (datetime, date)):
@@ -17,7 +21,7 @@ def default_json_encoder(value): # XXX
         sender = value.sender.as_dict if value.sender else None
         recipient = value.recipient.as_dict if value.recipient else None
         return {**asdict(value), 'sender': sender, 'recipient': recipient}
-    return dumps(value)
+    return json_dumps(value)
 
 @total_ordering
 class Currency(Enum):
@@ -54,6 +58,15 @@ class Transaction:
     amount: Decimal
     currency: Currency
 
+    @property
+    def ident(self):
+        m = sha256()
+        m.update(pickle_dumps(self))
+        return urlsafe_b64encode(m.digest())
+
+    def __hash__(self):
+        return hash((self.sender, self.recipient, self.date, self.amount, self.currency))
+
     @classmethod
     def from_csv(cls, fields):
         sender, recipient, date, amount, currency = fields
@@ -79,7 +92,7 @@ class Transaction:
 
     @property
     def as_json(self):
-        return dumps(self, default=default_json_encoder)
+        return json_dumps(self, default=default_json_encoder)
 
     @property
     def as_csv(self):
@@ -97,6 +110,9 @@ class Account:
     name: str
     country: str
     transactions: deque
+
+    def __hash__(self):
+        return hash((self.ident, self.name, self.country))
 
     @classmethod
     def from_json(cls, data, *, refdate): # XXX: kw-only
@@ -130,7 +146,7 @@ class Account:
     def as_json(self):
         data = asdict(self)
         data.pop('ident')
-        return dumps({**data, 'id': self.ident}, default=default_json_encoder)
+        return json_dumps({**data, 'id': self.ident}, default=default_json_encoder)
 
     # XXX
     @property
